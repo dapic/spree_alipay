@@ -165,5 +165,9 @@ Rails.logger.debug "--->before handle_billing_integration"
     def skip_state_validation?
       %w(registration update_registration).include?(params[:state])
     end
+
+    def alipay_paramters
+      params.require(:alipay).permit(:preferred_server, :preferred_test_mode, :preferred_email, :preferred_partner, :preferred_sign, :preferred_using_direct_pay_service)
+    end
   end
 end
