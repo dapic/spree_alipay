@@ -15,6 +15,7 @@ PATH
   remote: .
   specs:
     spree_alipay (2.2.0)
+      activemerchant_patch_for_china
 
 GEM
   remote: http://ruby.taobao.org/
