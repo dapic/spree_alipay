@@ -1,7 +1,6 @@
 module SpreeAlipay
   class Engine < Rails::Engine
     engine_name 'spree_alipay'
-
     config.autoload_paths += %W(#{config.root}/lib)
 
     # use rspec for tests
@@ -17,6 +16,7 @@ module SpreeAlipay
 
     config.to_prepare &method(:activate).to_proc
     
+    #puts "routes are: #{paths['config/routes.rb'].inspect}"
     config.after_initialize do |app|
       require 'active_merchant/billing/integrations/action_view_helper'
 ActionView::Base.send(:include, ActiveMerchant::Billing::Integrations::ActionViewHelper)

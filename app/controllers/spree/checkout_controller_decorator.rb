@@ -48,7 +48,7 @@ module Spree
     def alipay_checkout_payment
       payment_method =  PaymentMethod.find(params[:payment_method_id])
       #Rails.logger.debug "@payment_method=#{@payment_method.inspect}"       
-      Rails.logger.debug "alipay_full_service_url:"+aplipay_full_service_url(@order, payment_method)
+      Rails.logger.debug "alipay_full_service_url: "+alipay_full_service_url(@order, payment_method)
       # notice that load_order would call before_payment, if 'http==put' and 'order.state == payment', the payments will be deleted. 
       # so we have to create payment again
       @order.payments.create(:amount => @order.total, :payment_method_id => payment_method.id)
@@ -75,17 +75,20 @@ module Spree
       #all_filters = all_filters.select{|f| f.kind == :before}
       #logger.debug "all before filers:"+all_filters.map(&:filter).inspect 
       #TODO support step confirmation 
-Rails.logger.debug "--->checkout_hooking?"
+      #Rails.logger.debug "--->checkout_hooking?"
       return unless @order.next_step_complete?
       return unless params[:order][:payments_attributes].present?
-Rails.logger.debug "--->before update_attributes"
-      if @order.update_attributes(object_params) #it would create payments
+      #Rails.logger.info "--->before update_attributes"
+      #Rails.logger.info "paramsss #{params.inspect}"
+      #if @order.update_attributes(object_params) #it would create payments
+      #Rails.logger.debug "payment params returned: #{payment_params}"
+      if @order.update_attributes(payment_params) #it would create payments
         if params[:order][:coupon_code] and !params[:order][:coupon_code].blank? and @order.coupon_code.present?
           fire_event('spree.checkout.coupon_code_added', :coupon_code => @order.coupon_code)
         end
       end
       if pay_by_billing_integration?
-Rails.logger.debug "--->before handle_billing_integration"
+      #Rails.logger.debug "--->before handle_billing_integration"
         handle_billing_integration
       end
     end
@@ -105,10 +108,12 @@ Rails.logger.debug "--->before handle_billing_integration"
     end
 
 
-    def aplipay_full_service_url( order, alipay)
+    def alipay_full_service_url( order, alipay)
+      #Rails.logger.debug "alipay gateway is configured to be #{alipay.inspect}"
       raise ArgumentError, 'require Spree::BillingIntegration::Alipay' unless alipay.is_a? Spree::BillingIntegration::Alipay
-      url = ActiveMerchant::Billing::Integrations::Alipay.service_url+'?'
+      #url = ActiveMerchant::Billing::Integrations::Alipay.service_url+'?'
       helper = ActiveMerchant::Billing::Integrations::Alipay::Helper.new(order.number, alipay.preferred_partner)
+      #Rails.logger.debug "helper is #{helper.inspect}"
       using_direct_pay_service = alipay.preferred_using_direct_pay_service
 
       if using_direct_pay_service
@@ -122,6 +127,7 @@ Rails.logger.debug "--->before handle_billing_integration"
       end
       helper.seller :email => alipay.preferred_email
       #url_for is controller instance method, so we have to keep this method in controller instead of model
+      #Rails.logger.debug "helper is #{helper.inspect}"
       helper.notify_url url_for(:only_path => false, :action => 'alipay_notify')
       helper.return_url url_for(:only_path => false, :action => 'alipay_done')
       helper.body order.products.collect(&:name).to_s #String(400) 
@@ -129,12 +135,20 @@ Rails.logger.debug "--->before handle_billing_integration"
       helper.payment_type 1
       helper.subject "订单编号:#{order.number}"
       helper.sign
-      url << helper.form_fields.collect{ |field, value| "#{field}=#{value}" }.join('&')
-      URI.encode url # or URI::InvalidURIError    
+      url = URI.parse(ActiveMerchant::Billing::Integrations::Alipay.service_url)
+      #Rails.logger.debug "query from url #{url.query}"
+      #Rails.logger.debug "query from url parsed #{Rack::Utils.parse_nested_query(url.query).inspect}"
+      #Rails.logger.debug "helper fields #{helper.form_fields.to_query}"
+      url.query = ( Rack::Utils.parse_nested_query(url.query).merge(helper.form_fields) ).to_query
+      #Rails.logger.debug "full_service_url to be encoded is #{url.to_s}"
+      url.to_s
     end
 
     def pay_by_billing_integration?
+     
+      #Rails.logger.debug "current orderrrr: #{@order.inspect}"
       if @order.next_step_complete?
+        #Rails.logger.debug "pending paymentssss: #{@order.pending_payments.inspect}"
         if @order.pending_payments.first.payment_method.kind_of? BillingIntegration 
           return true
         end
@@ -157,7 +171,7 @@ Rails.logger.debug "--->before handle_billing_integration"
         alipay_helper_klass.const_set(:KEY, payment_method.preferred_sign)
 
         #redirect_to(alipay_checkout_payment_order_checkout_url(@order, :payment_method_id => payment_method.id))
-        redirect_to aplipay_full_service_url(@order, payment_method)
+        redirect_to alipay_full_service_url(@order, payment_method)
       end
     end
     
@@ -166,8 +180,8 @@ Rails.logger.debug "--->before handle_billing_integration"
       %w(registration update_registration).include?(params[:state])
     end
 
-    def alipay_paramters
-      params.require(:alipay).permit(:preferred_server, :preferred_test_mode, :preferred_email, :preferred_partner, :preferred_sign, :preferred_using_direct_pay_service)
+    def payment_params
+      params.require(:order).permit(:authenticity_token, {:payments_attributes => [ :payment_method_id]} , :coupon_code)
     end
   end
 end

@@ -7,9 +7,9 @@ describe "Alipay", :js => true do
   let!(:product) { FactoryGirl.create(:product, :name => 'iPad') }
   before do
     @gateway = Spree::BillingIntegration::Alipay.create!({
-      :preferred_email = 'sandbox_areq22@aliyun.com',
-      :preferred_partner = '2088002627298374',
-      :preferred_sign = 'f4y25qc539qakg734vn2jpqq6gmybxoz',
+      :preferred_email => 'sandbox_areq22@aliyun.com',
+      :preferred_partner => '2088002627298374',
+      :preferred_sign => 'f4y25qc539qakg734vn2jpqq6gmybxoz',
       :name => "Alipay",
       :active => true,
       :environment => Rails.env
@@ -243,5 +243,4 @@ describe "Alipay", :js => true do
       end
     end
   end
-=end
 end
